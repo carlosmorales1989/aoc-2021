@@ -3,27 +3,57 @@ import java.util.*
 import kotlin.math.abs
 
 fun main() {
-
     /*val startingRoomPositionsTest = listOf(
         RoomAmphipodPosition('B','A',0),
+
         RoomAmphipodPosition('A','A',1),
         RoomAmphipodPosition('C','B',0),
+
         RoomAmphipodPosition('D','B',1),
         RoomAmphipodPosition('B','C',0),
+
         RoomAmphipodPosition('C','C',1),
         RoomAmphipodPosition('D','D',0),
+
         RoomAmphipodPosition('A','D',1),
+    )*/
+    /*val startingRoomPositionsTest = listOf(
+        RoomAmphipodPosition('B','A',0),
+        RoomAmphipodPosition('D','A',1),
+        RoomAmphipodPosition('D','A',2),
+        RoomAmphipodPosition('A','A',3),
+        RoomAmphipodPosition('C','B',0),
+        RoomAmphipodPosition('C','B',1),
+        RoomAmphipodPosition('B','B',2),
+        RoomAmphipodPosition('D','B',3),
+        RoomAmphipodPosition('B','C',0),
+        RoomAmphipodPosition('B','C',1),
+        RoomAmphipodPosition('A','C',2),
+        RoomAmphipodPosition('C','C',3),
+        RoomAmphipodPosition('D','D',0),
+        RoomAmphipodPosition('A','D',1),
+        RoomAmphipodPosition('C','D',2),
+        RoomAmphipodPosition('A','D',3),
     )*/
     val startingRoomPositions = listOf(
         RoomAmphipodPosition('A','A',0),
-        RoomAmphipodPosition('B','A',1),
+        RoomAmphipodPosition('D','A',1),
+        RoomAmphipodPosition('D','A',2),
+        RoomAmphipodPosition('B','A',3),
         RoomAmphipodPosition('D','B',0),
         RoomAmphipodPosition('C','B',1),
+        RoomAmphipodPosition('B','B',2),
+        RoomAmphipodPosition('C','B',3),
         RoomAmphipodPosition('A','C',0),
-        RoomAmphipodPosition('D','C',1),
+        RoomAmphipodPosition('B','C',1),
+        RoomAmphipodPosition('A','C',2),
+        RoomAmphipodPosition('D','C',3),
         RoomAmphipodPosition('B','D',0),
-        RoomAmphipodPosition('C','D',1),
+        RoomAmphipodPosition('A','D',1),
+        RoomAmphipodPosition('C','D',2),
+        RoomAmphipodPosition('C','D',3),
     )
+
 
     val startingState = BurrowState(startingRoomPositions, listOf<HallwayAmphipodPosition>())
 
@@ -33,16 +63,11 @@ fun main() {
 
     var currentState: BurrowState? = startingState
 
-    var reps = 0
-
     while(currentState!= null && !currentState.isDone()){
         //println(currentState)
-        //println(toVisit.size)
+        println(toVisit.size)
         toVisit.addAll(currentState.generateStates())
         currentState = toVisit.poll()
-        if(reps++==10){
-            println(toVisit)
-        }
     }
     println(currentState)
 }
@@ -67,7 +92,7 @@ class BurrowState(){
 
     var hallway:Array<Int> = Array(11){-1}
 
-    var rooms = Array(4){Array(2){-1} }
+    var rooms = Array(4){Array(4){-1} }
 
     var energy = 0
 
@@ -137,15 +162,15 @@ class BurrowState(){
                 continue
 
             val expectedRoomNumber = hallway[hallwayPosition]
-            var expectedPosInRoom: Int
+            val room = rooms[expectedRoomNumber]
 
-            if(rooms[expectedRoomNumber][1] == -1 && rooms[expectedRoomNumber][0] == -1){
-                expectedPosInRoom = 1
-            }else if(rooms[expectedRoomNumber][1] == hallway[hallwayPosition] && rooms[expectedRoomNumber][0] == -1){
-                expectedPosInRoom = 0
-            }else{
-                //Room is blocked
+            // Room has something that doesn't belong. I can't add anything there
+            if(room.any{ it != -1 && it != expectedRoomNumber})
                 continue
+
+            var expectedPosInRoom = room.size-1
+            while(expectedPosInRoom >0 && room[expectedPosInRoom] != -1){
+                expectedPosInRoom--
             }
 
             val nextState = clone()
@@ -159,62 +184,39 @@ class BurrowState(){
         // States from rooms to hallways
         for (roomIndex in rooms.indices){
             val room = rooms[roomIndex]
-            if(room.all { it == roomIndex }){
-                // Room is correctly allocated
+            if(room.all { it == roomIndex || it == -1 }){
+                // Room is correctly allocated (even if partially)
                 continue
             }
 
             var counter: Int
-            val limit = 3
-            // Outermost position in room
-            if(room[0] != -1){
-                //if(room[0] < roomIndex) {
-                counter = 0
-                    // Left
-                    for (i in roomToPos(roomIndex) downTo 0) {
-                        if(isBanned(i))
-                            continue
-                        if (!moveFromRoomToHallway(i, nextStates, roomIndex, 0))
-                            break
-                        if (++counter >= limit)
-                            break
-                    }
-                //}else {
-                counter = 0
-                    // Right
-                    for (i in roomToPos(roomIndex) until 11) {
-                        if(isBanned(i))
-                            continue
-                        if (!moveFromRoomToHallway(i, nextStates, roomIndex, 0))
-                            break
-                        if (++counter >= limit)
-                            break
-                    }
-                //}
-            }
+            val limit = 4
 
-            // Innermost position in room
-            if(room[1] != -1 && room[0] == -1 && room[1] != roomIndex){
+            var posInsideRoom = 0
+            while(posInsideRoom < room.size && room[posInsideRoom] == -1)
+                posInsideRoom+=1
+
+            if(posInsideRoom < room.size){
                 counter = 0
-                //if(room[1] < roomIndex) {
-                    for (i in roomToPos(roomIndex) downTo 0) {
-                        if(isBanned(i))
-                            continue
-                        if (!moveFromRoomToHallway(i, nextStates, roomIndex, 1))
-                            break
-                        if (++counter >= limit)
-                            break
-                    }
+                // Left
+                for (i in roomToPos(roomIndex) downTo 0) {
+                    if(isBanned(i))
+                        continue
+                    if (!moveFromRoomToHallway(i, nextStates, roomIndex, posInsideRoom))
+                        break
+                    if (++counter >= limit)
+                        break
+                }
                 counter = 0
-                //}else {
-                    for (i in roomToPos(roomIndex) until 11) {
-                        if(isBanned(i))
-                            continue
-                        if (!moveFromRoomToHallway(i, nextStates, roomIndex, 1))
-                            break
-                        if (++counter >= limit)
-                            break
-                    }
+                // Right
+                for (i in roomToPos(roomIndex) until 11) {
+                    if(isBanned(i))
+                        continue
+                    if (!moveFromRoomToHallway(i, nextStates, roomIndex, posInsideRoom))
+                        break
+                    if (++counter >= limit)
+                        break
+                }
                 //}
             }
         }
@@ -226,7 +228,6 @@ class BurrowState(){
 
         if(hallway[hallwayPos]!=-1)
             return false
-
 
         val newState = clone()
         newState.rooms[roomIndex][posInsideRoom] = -1
